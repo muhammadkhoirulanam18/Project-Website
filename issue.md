@@ -1,30 +1,26 @@
-# Issue: Implementasi Fitur Get Current User
+# Issue: Implementasi Fitur Logout User
 
 ## Deskripsi Tugas
-Tugas ini bertujuan untuk menambahkan fitur "Get Current User" untuk mengambil data profil pengguna yang saat ini sedang login. API ini akan membutuhkan autentikasi berupa Bearer Token yang dikirimkan melalui header request.
+Tugas ini bertujuan untuk menambahkan fitur Logout bagi pengguna yang sedang aktif (login). Proses logout dilakukan dengan cara menghapus token sesi (session token) milik pengguna tersebut dari tabel `sessions` di database. API ini membutuhkan autentikasi berupa Bearer Token yang dikirimkan melalui header request.
 
 ## 1. Spesifikasi API
 
-Buat endpoint baru untuk mengambil data user yang sedang login.
+Buat endpoint baru untuk menangani proses logout pengguna.
 
-- **Endpoint:** `GET /api/users/current`
+- **Endpoint:** `DELETE /api/users/logout`
 - **Header Request:**
   - `Authorization`: `Bearer <token>`
-  *(Catatan: Token ini adalah token UUID yang dihasilkan saat login dan tersimpan di tabel `sessions`)*
+  *(Catatan: Token ini digunakan untuk mengidentifikasi sesi mana yang harus dihapus dari database)*
 
 - **Response Body (Success 200 OK):**
   ```json
   {
-      "id": 1,
-      "name": "Bernadya",
-      "email": "bernadya@example.com",
-      "created_at": "2023-10-27T10:00:00.000Z",
-      "updated_at": "2023-10-27T10:00:00.000Z"
+      "data": "OK"
   }
   ```
 
 - **Response Body (Error 401 Unauthorized):**
-  Dikembalikan jika token tidak ada, tidak valid, atau tidak ditemukan di database.
+  Dikembalikan jika token tidak valid, tidak ada di header, atau tidak ditemukan di database.
   ```json
   {
       "message": "unauthorized"
@@ -32,53 +28,48 @@ Buat endpoint baru untuk mengambil data user yang sedang login.
   ```
 
 ## 2. Struktur Folder & File
-Pertahankan arsitektur modular yang sudah ada:
-- **Routes (`src/routes/user-router.ts`):** Tempat mendefinisikan routing Elysia untuk entitas user.
-- **Services (`src/services/user-services.ts`):** Tempat menyimpan logika bisnis aplikasi untuk mengambil data user berdasarkan token.
+Lanjutkan penggunaan arsitektur modular yang sudah ada:
+- **Routes (`src/routes/user-router.ts`):** Tempat mendefinisikan routing Elysia untuk endpoint logout.
+- **Services (`src/services/user-services.ts`):** Tempat menyimpan logika bisnis aplikasi untuk menghapus sesi dari database.
 
 ---
 
 ## 3. Tahapan Implementasi (Step-by-Step Guide)
 
-Ikuti langkah-langkah berikut untuk mengimplementasikan fitur ini:
+Ikuti langkah-langkah berikut untuk mengimplementasikan fitur logout:
 
-### Langkah 1: Pengecekan Skema Database (Opsional)
-Pastikan tabel `users` memiliki kolom `created_at` dan `updated_at`. Jika `updated_at` belum ada di file schema (`src/db/schema.ts`), silakan tambahkan, jalankan migrasi/push, lalu lanjutkan. (Atau kembalikan data yang ada saja jika spesifikasi membolehkan).
-
-### Langkah 2: Buat Logika Service (Business Logic)
+### Langkah 1: Buat Logika Service (Business Logic)
 1. Buka file `src/services/user-services.ts`.
-2. Buat sebuah fungsi asynchronous (misal: `getCurrentUser`) yang menerima parameter `token` (berupa string).
+2. Buat sebuah fungsi asynchronous (misal: `logoutUser`) yang menerima parameter `token` (berupa string).
 3. **Logika di dalam fungsi:**
-   - Lakukan query ke database (tabel `sessions`) untuk mencari apakah ada sesi yang cocok dengan `token` yang diberikan.
+   - Lakukan pengecekan ke database (tabel `sessions`) untuk mencari sesi dengan `token` tersebut.
    - Jika sesi **tidak ditemukan**, lemparkan error (throw error) dengan pesan `"unauthorized"`.
-   - Jika sesi ditemukan, ambil `userId` dari sesi tersebut.
-   - Lakukan query ke tabel `users` untuk mencari data user berdasarkan `userId` tersebut.
-   - Kembalikan data user yang ditemukan (id, name, email, created_at, updated_at). Jangan kembalikan password!
+   - Jika sesi ditemukan, jalankan perintah `DELETE` pada tabel `sessions` berdasarkan `token` tersebut menggunakan Drizzle ORM.
+   - (Opsional) Anda bisa me-return boolean `true` atau biarkan fungsi selesai tanpa me-return apapun jika berhasil.
 
-### Langkah 3: Buat Endpoint di Router
+### Langkah 2: Buat Endpoint di Router
 1. Buka file `src/routes/user-router.ts`.
-2. Tambahkan endpoint `.get('/current', ...)` di bawah prefix `/users` (jika router menggunakan prefix).
+2. Tambahkan endpoint `.delete('/logout', ...)` di bawah prefix `/users`.
 3. **Logika di dalam handler:**
-   - Ambil header `authorization` dari request (bisa melalui context `headers` bawaan Elysia).
-   - Validasi apakah header `authorization` ada dan dimulai dengan kata `"Bearer "`.
-   - Jika tidak ada atau format salah, atur HTTP status menjadi 401 dan return `{"message": "unauthorized"}`.
-   - Ekstrak nilai token-nya (hilangkan kata `"Bearer "`).
-   - Di dalam blok `try...catch`, panggil fungsi `UserService.getCurrentUser(token)`.
-   - Jika berhasil, kembalikan data user tersebut sebagai response success.
-   - Jika gagal (masuk ke blok `catch`), cek pesan errornya. Jika pesan errornya `"unauthorized"`, kembalikan HTTP status 401 dan response `{"message": "unauthorized"}`. Jika error lain, tangani sesuai kebutuhan (misal 500 Internal Server Error).
+   - Ekstrak header `authorization` dari request.
+   - Validasi keberadaan header tersebut. Pastikan formatnya dimulai dengan `"Bearer "`.
+   - Jika tidak valid atau tidak ada, atur HTTP status menjadi 401 dan return `{"message": "unauthorized"}`.
+   - Ambil nilai tokennya (hapus string `"Bearer "`).
+   - Di dalam blok `try...catch`, panggil fungsi `UserService.logoutUser(token)`.
+   - Jika berhasil (blok `try` tereksekusi sampai akhir), kembalikan response success: `{"data": "OK"}`.
+   - Jika gagal (masuk ke blok `catch`), cek errornya. Jika pesan error adalah `"unauthorized"`, set HTTP status ke 401 dan kembalikan response `{"message": "unauthorized"}`. Jika error lain, kembalikan HTTP 500 (Internal Server Error).
 
-### Langkah 4: Integrasi dan Pengujian
-1. Pastikan `user-router.ts` sudah didaftarkan di file utama (`index.ts`).
-2. Jalankan server dan lakukan pengujian dengan Postman/Insomnia/cURL.
-3. Lakukan pengujian untuk 3 skenario:
-   - Tanpa mengirim header Authorization.
-   - Mengirim token yang salah/sembarang.
-   - Mengirim token yang benar (didapat dari endpoint login sebelumnya).
+### Langkah 3: Pengujian (Testing)
+1. Jalankan server lokal aplikasi.
+2. Lakukan login terlebih dahulu untuk mendapatkan **token** yang valid.
+3. Buka API Client (Postman/cURL/Insomnia) dan uji endpoint `DELETE /api/users/logout` untuk 3 skenario:
+   - **Skenario 1 (Tanpa Token):** Panggil endpoint tanpa mengirimkan header Authorization. Pastikan response adalah error "unauthorized".
+   - **Skenario 2 (Token Valid):** Panggil endpoint dengan menyertakan token yang didapat dari login. Pastikan response adalah `{"data": "OK"}`. Cek juga di database apakah baris sesi tersebut benar-benar terhapus.
+   - **Skenario 3 (Token Expired/Sudah Logout):** Gunakan token yang sama dari Skenario 2 (yang sudah dilogout/dihapus). Pastikan response adalah error "unauthorized".
 
 ## Kriteria Penerimaan (Acceptance Criteria)
-- [ ] Endpoint `GET /api/users/current` dapat diakses.
-- [ ] API wajib memeriksa Bearer token dari header.
-- [ ] Token yang dikirim diverifikasi kebenarannya melalui tabel `sessions`.
-- [ ] Response sukses mengembalikan detail profil user (id, name, email, created_at, updated_at).
-- [ ] Response gagal karena masalah token mengembalikan HTTP status 401 dengan pesan `{"message": "unauthorized"}`.
-- [ ] Alur logika dipisahkan dengan baik di router dan service.
+- [ ] Endpoint `DELETE /api/users/logout` dapat diakses dan menerima HTTP DELETE.
+- [ ] Proses logout berhasil menghapus baris token yang sesuai secara permanen dari tabel `sessions`.
+- [ ] Proses logout memberikan response sukses `{"data": "OK"}` jika token valid.
+- [ ] Endpoint memberikan response `{"message": "unauthorized"}` (HTTP 401) jika token salah, tidak ada, atau sudah pernah di-logout sebelumnya.
+- [ ] File router dan service termodifikasi mengikuti konvensi penamaan yang sudah ada.
