@@ -34,7 +34,11 @@ export const userRouter = new Elysia({ prefix: '/api' })
       await UserService.logoutUser(token);
       return { data: 'OK' };
     } catch (error: any) {
-      set.status = 401;
-      return { message: 'unauthorized' };
+      if (error.message === 'unauthorized') {
+        set.status = 401;
+        return { message: 'unauthorized' };
+      }
+      set.status = 500;
+      return { message: 'Internal Server Error' };
     }
   });
