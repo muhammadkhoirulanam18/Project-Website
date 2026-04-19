@@ -1,6 +1,6 @@
 import { eq } from 'drizzle-orm';
 import { db } from '../db';
-import { users, type NewUser } from '../db/schema';
+import { users, sessions, type NewUser } from '../db/schema';
 import hash from 'bcryptjs';
 
 export class UserService {
@@ -31,6 +31,8 @@ export class UserService {
         id: users.id,
         name: users.name,
         email: users.email,
+        createdAt: users.createdAt,
+        updatedAt: users.updatedAt
       })
       .from(users)
       .where(eq(users.id, result.insertId))
@@ -44,7 +46,38 @@ export class UserService {
       id: users.id,
       name: users.name,
       email: users.email,
-      createdAt: users.createdAt
+      createdAt: users.createdAt,
+      updatedAt: users.updatedAt
     }).from(users);
+  }
+
+  static async getCurrentUser(token: string) {
+    const [session] = await db
+      .select()
+      .from(sessions)
+      .where(eq(sessions.token, token))
+      .limit(1);
+
+    if (!session) {
+      throw new Error('unauthorized');
+    }
+
+    const [user] = await db
+      .select({
+        id: users.id,
+        name: users.name,
+        email: users.email,
+        createdAt: users.createdAt,
+        updatedAt: users.updatedAt
+      })
+      .from(users)
+      .where(eq(users.id, session.userId))
+      .limit(1);
+
+    if (!user) {
+      throw new Error('unauthorized');
+    }
+
+    return user;
   }
 }
