@@ -82,16 +82,10 @@ export class UserService {
   }
 
   static async logoutUser(token: string) {
-    const [session] = await db
-      .select()
-      .from(sessions)
-      .where(eq(sessions.token, token))
-      .limit(1);
+    const [result] = await db.delete(sessions).where(eq(sessions.token, token));
 
-    if (!session) {
+    if (result.affectedRows === 0) {
       throw new Error('unauthorized');
     }
-
-    await db.delete(sessions).where(eq(sessions.token, token));
   }
 }
