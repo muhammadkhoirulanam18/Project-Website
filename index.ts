@@ -3,7 +3,7 @@ import { userRouter } from './src/routes/user-router';
 import { authRouter } from './src/routes/auth-routes';
 import { UserService } from './src/services/user-services';
 
-const app = new Elysia()
+export const app = new Elysia()
   .get('/', () => 'Hello Elysia')
   .use(userRouter)
   .use(authRouter)
