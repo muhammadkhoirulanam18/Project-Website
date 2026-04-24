@@ -12,7 +12,7 @@ export const app = new Elysia()
   .get('/users', async () => {
     return await UserService.getAllUsers();
   })
-  .listen(3000);
+  .listen(3005);
 
 console.log(
   `🦊 Elysia is running at ${app.server?.hostname}:${app.server?.port}`
