@@ -17,7 +17,7 @@ export const authRouter = new Elysia({ prefix: '/auth' })
     }
   }, {
     body: t.Object({
-      name: t.String(),
+      name: t.String({ maxLength: 255 }),
       email: t.String({ format: 'email' }),
       password: t.String(),
     })
