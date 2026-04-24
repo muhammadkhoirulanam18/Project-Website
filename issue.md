@@ -1,75 +1,74 @@
-# Issue: Implementasi Fitur Logout User
+# Issue: Implementasi Fitur Swagger (API Documentation)
 
 ## Deskripsi Tugas
-Tugas ini bertujuan untuk menambahkan fitur Logout bagi pengguna yang sedang aktif (login). Proses logout dilakukan dengan cara menghapus token sesi (session token) milik pengguna tersebut dari tabel `sessions` di database. API ini membutuhkan autentikasi berupa Bearer Token yang dikirimkan melalui header request.
+Tugas ini bertujuan untuk mengintegrasikan dokumentasi API interaktif menggunakan **Swagger** ke dalam proyek ini. Dengan adanya antarmuka Swagger, developer atau *user* lain yang ingin menggunakan API pada aplikasi ini dapat dengan mudah melihat daftar *endpoint* yang tersedia, parameter yang dibutuhkan, serta langsung mencoba request (uji coba) melalui *browser* tanpa memerlukan aplikasi tambahan seperti Postman.
 
-## 1. Spesifikasi API
+## 1. Spesifikasi Fitur
+- Menggunakan plugin resmi dari framework: `@elysiajs/swagger`.
+- Dokumentasi API dapat diakses melalui browser pada path `/swagger`.
+- Menampilkan informasi dasar aplikasi seperti Judul ("Project Web API") dan versi ("1.0.0").
+- Secara otomatis membaca skema validasi (`t.Object`, `t.String()`) yang sudah ada di *router* dan mengubahnya menjadi dokumentasi parameter.
 
-Buat endpoint baru untuk menangani proses logout pengguna.
-
-- **Endpoint:** `DELETE /api/users/logout`
-- **Header Request:**
-  - `Authorization`: `Bearer <token>`
-  *(Catatan: Token ini digunakan untuk mengidentifikasi sesi mana yang harus dihapus dari database)*
-
-- **Response Body (Success 200 OK):**
-  ```json
-  {
-      "data": "OK"
-  }
-  ```
-
-- **Response Body (Error 401 Unauthorized):**
-  Dikembalikan jika token tidak valid, tidak ada di header, atau tidak ditemukan di database.
-  ```json
-  {
-      "message": "unauthorized"
-  }
-  ```
-
-## 2. Struktur Folder & File
-Lanjutkan penggunaan arsitektur modular yang sudah ada:
-- **Routes (`src/routes/user-router.ts`):** Tempat mendefinisikan routing Elysia untuk endpoint logout.
-- **Services (`src/services/user-services.ts`):** Tempat menyimpan logika bisnis aplikasi untuk menghapus sesi dari database.
+## 2. Struktur File yang Relevan
+- **`package.json`**: Untuk menambahkan dependensi plugin Swagger.
+- **`index.ts`**: *Entry point* aplikasi tempat di mana plugin Swagger akan didaftarkan/di-*inject* ke dalam *instance* Elysia.
 
 ---
 
 ## 3. Tahapan Implementasi (Step-by-Step Guide)
 
-Ikuti langkah-langkah berikut untuk mengimplementasikan fitur logout:
+Ikuti langkah-langkah di bawah ini untuk mengimplementasikan fitur Swagger secara sistematis. Panduan ini dibuat spesifik agar dapat langsung dieksekusi dengan mudah.
 
-### Langkah 1: Buat Logika Service (Business Logic)
-1. Buka file `src/services/user-services.ts`.
-2. Buat sebuah fungsi asynchronous (misal: `logoutUser`) yang menerima parameter `token` (berupa string).
-3. **Logika di dalam fungsi:**
-   - Lakukan pengecekan ke database (tabel `sessions`) untuk mencari sesi dengan `token` tersebut.
-   - Jika sesi **tidak ditemukan**, lemparkan error (throw error) dengan pesan `"unauthorized"`.
-   - Jika sesi ditemukan, jalankan perintah `DELETE` pada tabel `sessions` berdasarkan `token` tersebut menggunakan Drizzle ORM.
-   - (Opsional) Anda bisa me-return boolean `true` atau biarkan fungsi selesai tanpa me-return apapun jika berhasil.
+### Langkah 1: Instalasi Dependensi
+1. Buka terminal Anda dan pastikan Anda berada di direktori *root* proyek.
+2. Jalankan perintah instalasi menggunakan package manager Bun:
+   ```bash
+   bun add @elysiajs/swagger
+   ```
+3. Pastikan proses instalasi selesai tanpa error dan plugin tercatat di dalam file `package.json`.
 
-### Langkah 2: Buat Endpoint di Router
-1. Buka file `src/routes/user-router.ts`.
-2. Tambahkan endpoint `.delete('/logout', ...)` di bawah prefix `/users`.
-3. **Logika di dalam handler:**
-   - Ekstrak header `authorization` dari request.
-   - Validasi keberadaan header tersebut. Pastikan formatnya dimulai dengan `"Bearer "`.
-   - Jika tidak valid atau tidak ada, atur HTTP status menjadi 401 dan return `{"message": "unauthorized"}`.
-   - Ambil nilai tokennya (hapus string `"Bearer "`).
-   - Di dalam blok `try...catch`, panggil fungsi `UserService.logoutUser(token)`.
-   - Jika berhasil (blok `try` tereksekusi sampai akhir), kembalikan response success: `{"data": "OK"}`.
-   - Jika gagal (masuk ke blok `catch`), cek errornya. Jika pesan error adalah `"unauthorized"`, set HTTP status ke 401 dan kembalikan response `{"message": "unauthorized"}`. Jika error lain, kembalikan HTTP 500 (Internal Server Error).
+### Langkah 2: Registrasi Plugin di `index.ts`
+1. Buka file utama aplikasi yaitu `index.ts` yang berada di *root* folder.
+2. Pada bagian paling atas file (bersama deretan *import* lainnya), tambahkan *import* untuk modul Swagger:
+   ```typescript
+   import { swagger } from '@elysiajs/swagger';
+   ```
+3. Cari tempat di mana instance aplikasi Elysia diinisialisasi (`const app = new Elysia()`).
+4. **Penting:** Tambahkan pemanggilan `.use(swagger(...))` **sebelum** Anda memanggil *router* lain seperti `.use(userRouter)`. Tujuannya agar Swagger bisa membaca rute-rute yang dideklarasikan setelahnya.
+   *Contoh implementasi kode:*
+   ```typescript
+   export const app = new Elysia()
+     // Daftarkan Swagger di awal
+     .use(swagger({
+         path: '/swagger',
+         documentation: {
+             info: {
+                 title: 'Project Web API Documentation',
+                 version: '1.0.0',
+                 description: 'Dokumentasi interaktif untuk REST API Project Web'
+             }
+         }
+     }))
+     // Router lain tetap di bawahnya
+     .get('/', () => 'Hello Elysia')
+     .use(userRouter)
+     .use(authRouter)
+     // ...kode lainnya
+   ```
 
 ### Langkah 3: Pengujian (Testing)
-1. Jalankan server lokal aplikasi.
-2. Lakukan login terlebih dahulu untuk mendapatkan **token** yang valid.
-3. Buka API Client (Postman/cURL/Insomnia) dan uji endpoint `DELETE /api/users/logout` untuk 3 skenario:
-   - **Skenario 1 (Tanpa Token):** Panggil endpoint tanpa mengirimkan header Authorization. Pastikan response adalah error "unauthorized".
-   - **Skenario 2 (Token Valid):** Panggil endpoint dengan menyertakan token yang didapat dari login. Pastikan response adalah `{"data": "OK"}`. Cek juga di database apakah baris sesi tersebut benar-benar terhapus.
-   - **Skenario 3 (Token Expired/Sudah Logout):** Gunakan token yang sama dari Skenario 2 (yang sudah dilogout/dihapus). Pastikan response adalah error "unauthorized".
+1. Jalankan server lokal aplikasi Anda:
+   ```bash
+   bun index.ts
+   ```
+2. Buka *browser* pilihan Anda (Chrome/Firefox/Safari).
+3. Akses URL berikut: `http://localhost:3000/swagger`
+4. **Verifikasi:** Anda harusnya melihat antarmuka antarmuka grafis (UI) khas Swagger/OpenAPI yang menampilkan daftar API (`/auth/register`, `/auth/users/login`, `/api/users/current`, dll) beserta skema *body* yang dibutuhkan.
+5. Cobalah klik salah satu API dan jalankan *'Try it out'* untuk memastikan *endpoint* dapat di-hit secara langsung dari UI Swagger.
 
 ## Kriteria Penerimaan (Acceptance Criteria)
-- [ ] Endpoint `DELETE /api/users/logout` dapat diakses dan menerima HTTP DELETE.
-- [ ] Proses logout berhasil menghapus baris token yang sesuai secara permanen dari tabel `sessions`.
-- [ ] Proses logout memberikan response sukses `{"data": "OK"}` jika token valid.
-- [ ] Endpoint memberikan response `{"message": "unauthorized"}` (HTTP 401) jika token salah, tidak ada, atau sudah pernah di-logout sebelumnya.
-- [ ] File router dan service termodifikasi mengikuti konvensi penamaan yang sudah ada.
+- [ ] Plugin `@elysiajs/swagger` telah terinstal dan terdaftar di `package.json`.
+- [ ] Modul Swagger berhasil di-*import* dan di-*use* di dalam file `index.ts`.
+- [ ] Halaman dokumentasi API dapat diakses dengan sukses di `http://localhost:3000/swagger`.
+- [ ] Informasi dasar API (Title dan Version) muncul dengan benar pada bagian atas UI Swagger.
+- [ ] Seluruh endpoint autentikasi dan user muncul di dalam antarmuka Swagger beserta parameter validasinya.
