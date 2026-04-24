@@ -17,10 +17,30 @@ export const authRouter = new Elysia({ prefix: '/auth' })
     }
   }, {
     body: t.Object({
-      name: t.String(),
+      name: t.String({ maxLength: 255 }),
       email: t.String({ format: 'email' }),
       password: t.String(),
-    })
+    }),
+    response: {
+      200: t.Object({
+        success: t.Boolean(),
+        message: t.String(),
+        data: t.Object({
+          id: t.Number(),
+          name: t.String(),
+          email: t.String(),
+          createdAt: t.Any(),
+          updatedAt: t.Any(),
+        }),
+      }),
+      400: t.Object({
+        message: t.String(),
+      }),
+    },
+    detail: {
+      summary: 'Register a new user',
+      tags: ['Auth'],
+    },
   })
   .post('/users/login', async ({ body, set }) => {
     try {
@@ -38,5 +58,17 @@ export const authRouter = new Elysia({ prefix: '/auth' })
     body: t.Object({
       email: t.String({ format: 'email' }),
       password: t.String(),
-    })
+    }),
+    response: {
+      200: t.Object({
+        data: t.String(),
+      }),
+      401: t.Object({
+        error: t.String(),
+      }),
+    },
+    detail: {
+      summary: 'User login',
+      tags: ['Auth'],
+    },
   });
