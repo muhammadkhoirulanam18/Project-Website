@@ -5,16 +5,7 @@ import { authRouter } from './src/routes/auth-routes';
 import { UserService } from './src/services/user-services';
 
 export const app = new Elysia()
-  .use(swagger({
-    path: '/swagger',
-    documentation: {
-      info: {
-        title: 'Project Web API Documentation',
-        version: '1.0.0',
-        description: 'Dokumentasi interaktif untuk REST API Project Web'
-      }
-    }
-  }))
+  .use(swagger())
   .get('/', () => 'Hello Elysia')
   .use(userRouter)
   .use(authRouter)
